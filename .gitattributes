@@ -1,0 +1,4 @@
+# ให้ทุกเครื่องใช้ line ending แบบเดียวกัน (กัน diff เต็มไฟล์เวลาทำงานร่วมกัน)
+* text=auto eol=lf
+*.rbxl binary
+*.rbxm binary
