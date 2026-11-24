@@ -38,7 +38,10 @@ rojo serve                                   # เปิดค้างไว้
 - [x] Phase 1 ข้อ 3 — Config: `Rarities`, `ShirtTemplates`, `SackTypes`, `GameConfig`
 - [x] Phase 1 ข้อ 4 — โรงงาน: spawn กระสอบ + ซื้อ + เดินแบก (`SackService`, `FactoryBuilder`)
 - [x] Phase 1 ข้อ 5 — เปิดกระสอบ → สุ่มเสื้อ + คลังเสื้อ + หน้าอัตราสุ่ม (`SackOpenService`, `InventoryService`, `ShirtGenerator`)
-- [ ] Phase 1 ข้อ 6 — วางขาย + ตั้งราคา + NPC ซื้อ
+- [x] Phase 1 ข้อ 6 — วางขาย + ตั้งราคา + NPC หยิบเสื้อไปจ่ายที่เคาน์เตอร์ + กดคิดเงิน (`ShopService`, `NPCService`, `DisplayController`)
+- [x] ตกแต่งร้าน: ราวตากผ้า / ตู้โชว์ / กรอบรูป วางได้อิสระ ย้าย/ขายคืนได้ (`DecorService`, `DecorController`, `PlacementRules`)
+- [x] UI ใหม่ทั้งชุด (`UI/Theme`, `HudController`)
+- [ ] อนาคต — จ้างพนักงานแคชเชียร์ (เรียก `NPCService:CheckoutNext` อัตโนมัติ)
 
 ## TODO สำคัญ
 

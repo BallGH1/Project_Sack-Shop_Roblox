@@ -5,8 +5,11 @@ local ControllersFolder = script:WaitForChild("Controllers")
 
 local LOAD_ORDER = {
 	"NotificationController",
+	"HudController", -- ต้องมาก่อน controller ที่เพิ่มปุ่มแถบซ้าย
 	"SackOpenController",
 	"InventoryController",
+	"DisplayController",
+	"DecorController",
 }
 
 for _, name in LOAD_ORDER do

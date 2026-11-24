@@ -8,9 +8,14 @@ local ServicesFolder = script:WaitForChild("Services")
 local LOAD_ORDER = {
 	"DataService",
 	"PlotService",
+	"DevService", -- บัญชีทดสอบ: วิ่งเร็ว + เงินเยอะ
 	"SackService",
+	"WorldService", -- ต้องอยู่หลัง Plot/Sack (สร้างเมืองรอบร้านและโรงงาน)
 	"InventoryService",
 	"SackOpenService",
+	"ShopService",
+	"DecorService", -- ต้องอยู่หลัง ShopService (วางของตกแต่ง แล้วให้ ShopService วาดเสื้อ)
+	"NPCService",
 }
 
 local services = {}

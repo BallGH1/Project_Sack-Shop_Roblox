@@ -7,6 +7,8 @@ local RunService = game:GetService("RunService")
 local Config = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config")
 local Rarities = require(Config:WaitForChild("Rarities"))
 local ShirtRules = require(Config:WaitForChild("ShirtRules"))
+local ShirtTemplates = require(Config:WaitForChild("ShirtTemplates"))
+local Theme = require(script.Parent:WaitForChild("Theme"))
 
 local ShirtCard = {}
 
@@ -57,11 +59,20 @@ function ShirtCard.Create(shirt): Frame
 	local card = Instance.new("Frame")
 	card.Name = "ShirtCard"
 	card.Size = UDim2.fromOffset(150, 200)
-	card.BackgroundColor3 = Color3.fromRGB(32, 28, 26)
+	card.BackgroundColor3 = Theme.Colors.PanelLight
+	Theme.Gradient(card, Color3.fromRGB(255, 255, 255), Color3.fromRGB(185, 178, 170))
 
 	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 10)
+	corner.CornerRadius = UDim.new(0, 12)
 	corner.Parent = card
+	-- แถบสี rarity ด้านบน
+	local strip = Instance.new("Frame")
+	strip.Name = "RarityStrip"
+	strip.Size = UDim2.new(1, 0, 0, 5)
+	strip.BorderSizePixel = 0
+	strip.BackgroundColor3 = rarity.Color
+	strip.Parent = card
+	Theme.Corner(strip, 3)
 
 	local stroke = Instance.new("UIStroke")
 	stroke.Color = rarity.Color
@@ -85,7 +96,28 @@ function ShirtCard.Create(shirt): Frame
 	local iconCorner = Instance.new("UICorner")
 	iconCorner.CornerRadius = UDim.new(0, 8)
 	iconCorner.Parent = iconBg
-	label(iconBg, "Icon", UDim2.fromScale(0, 0.05), UDim2.fromScale(1, 0.9), "👕", Color3.new(1, 1, 1))
+	-- รูปเสื้อ: เสื้อทั้งตัว (ShirtImageId) > ลายหน้าอก (GraphicId) > อิโมจิ
+	local template = ShirtTemplates.Get(shirt.TemplateId)
+	local imageId = if template and (template.ShirtImageId or 0) > 0
+		then template.ShirtImageId
+		elseif template and (template.GraphicId or 0) > 0 then template.GraphicId
+		else 0
+	if imageId > 0 then
+		if template.ShirtImageId and template.ShirtImageId > 0 then
+			-- เสื้อทั้งตัว: ขยายกรอบรูปให้ใหญ่ขึ้นนิด
+			iconBg.Position = UDim2.fromScale(0.06, 0.12)
+			iconBg.Size = UDim2.fromScale(0.88, 0.37)
+		end
+		local image = Instance.new("ImageLabel")
+		image.Name = "Graphic"
+		image.Size = UDim2.fromScale(1, 1)
+		image.BackgroundTransparency = 1
+		image.ScaleType = Enum.ScaleType.Fit
+		image.Image = "rbxassetid://" .. imageId
+		image.Parent = iconBg
+	else
+		label(iconBg, "Icon", UDim2.fromScale(0, 0.05), UDim2.fromScale(1, 0.9), "👕", Color3.new(1, 1, 1))
+	end
 
 	label(card, "Name", UDim2.fromScale(0.05, 0.5), UDim2.fromScale(0.9, 0.13), shirt.DisplayName, Color3.new(1, 1, 1), true)
 	label(card, "Condition", UDim2.fromScale(0.05, 0.64), UDim2.fromScale(0.9, 0.09), ("สภาพ %d%%"):format(shirt.Condition), tier.Color, true)
@@ -105,6 +137,17 @@ function ShirtCard.Create(shirt): Frame
 		priceText = ShirtCard.FormatMoney(shirt.PriceMin) .. " - " .. ShirtCard.FormatMoney(shirt.PriceMax)
 	end
 	label(card, "Price", UDim2.fromScale(0.05, 0.85), UDim2.fromScale(0.9, 0.11), priceText, Color3.fromRGB(255, 225, 110), true)
+
+	-- ป้าย "วางขายอยู่" (เสื้อที่แขวนบนราว)
+	if shirt.OnDisplay then
+		local tag = label(card, "OnDisplay", UDim2.fromScale(0.1, 0.14), UDim2.fromScale(0.8, 0.1), "วางขายอยู่", Color3.new(1, 1, 1), true)
+		tag.BackgroundTransparency = 0.1
+		tag.BackgroundColor3 = Color3.fromRGB(210, 120, 40)
+		tag.ZIndex = 2
+		local tagCorner = Instance.new("UICorner")
+		tagCorner.CornerRadius = UDim.new(0, 6)
+		tagCorner.Parent = tag
+	end
 
 	return card
 end

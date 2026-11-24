@@ -49,8 +49,14 @@ function InventoryService:GetPublicInventory(player: Player): { ShirtGenerator.P
 	local data = DataService:GetData(player)
 	local list = {}
 	if data then
+		local displayed = {}
+		for _, entry in data.Displayed do
+			displayed[entry.ShirtId] = true
+		end
 		for _, shirt in data.Shirts do
-			table.insert(list, ShirtGenerator.ToPublic(shirt))
+			local public = ShirtGenerator.ToPublic(shirt) :: any
+			public.OnDisplay = displayed[shirt.Id] == true
+			table.insert(list, public)
 		end
 	end
 	return list

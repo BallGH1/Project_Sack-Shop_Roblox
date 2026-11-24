@@ -9,6 +9,8 @@ local Config = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config")
 local Rarities = require(Config:WaitForChild("Rarities"))
 local SackTypes = require(Config:WaitForChild("SackTypes"))
 local ShirtCard = require(script.Parent.Parent:WaitForChild("UI"):WaitForChild("ShirtCard"))
+local Theme = require(script.Parent.Parent:WaitForChild("UI"):WaitForChild("Theme"))
+local RunService = game:GetService("RunService")
 
 local SackOpenController = {}
 
@@ -23,6 +25,8 @@ local grid: Frame
 local gridScale: UIScale
 local summary: TextLabel
 local closeButton: TextButton
+local rays: Frame
+local raysConnection: RBXScriptConnection? = nil
 
 local queue = {}
 local busy = false
@@ -39,7 +43,36 @@ local function createGui()
 	overlay.Name = "Overlay"
 	overlay.Size = UDim2.fromScale(1, 1)
 	overlay.BackgroundColor3 = Color3.new(0, 0, 0)
-	overlay.BackgroundTransparency = 0.35
+	overlay.BackgroundTransparency = 0.25
+	Theme.Gradient(overlay, Color3.fromRGB(60, 45, 30), Color3.fromRGB(10, 8, 6))
+
+	-- แสงรัศมีหมุนช้า ๆ ด้านหลังการ์ด
+	rays = Instance.new("Frame")
+	rays.Name = "Rays"
+	rays.AnchorPoint = Vector2.new(0.5, 0.5)
+	rays.Position = UDim2.fromScale(0.5, 0.5)
+	rays.Size = UDim2.fromOffset(1400, 1400)
+	rays.BackgroundTransparency = 1
+	rays.Parent = gui
+	for i = 0, 11 do
+		local ray = Instance.new("Frame")
+		ray.AnchorPoint = Vector2.new(0.5, 0.5)
+		ray.Position = UDim2.fromScale(0.5, 0.5)
+		ray.Size = UDim2.new(0, 90, 1, 0)
+		ray.Rotation = i * 15
+		ray.BorderSizePixel = 0
+		ray.BackgroundColor3 = Theme.Colors.Accent
+		ray.BackgroundTransparency = 0.9
+		ray.Parent = rays
+		local fade = Instance.new("UIGradient")
+		fade.Rotation = 90
+		fade.Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 1),
+			NumberSequenceKeypoint.new(0.5, 0.2),
+			NumberSequenceKeypoint.new(1, 1),
+		})
+		fade.Parent = ray
+	end
 	overlay.Parent = gui
 
 	title = Instance.new("TextLabel")
@@ -50,7 +83,7 @@ local function createGui()
 	title.BackgroundTransparency = 1
 	title.TextScaled = true
 	title.Font = Enum.Font.GothamBlack
-	title.TextColor3 = Color3.fromRGB(255, 230, 150)
+	title.TextColor3 = Theme.Colors.Accent
 	title.TextStrokeTransparency = 0.4
 	title.Parent = gui
 
@@ -85,21 +118,12 @@ local function createGui()
 	summary.TextColor3 = Color3.fromRGB(255, 225, 110)
 	summary.Parent = gui
 
-	closeButton = Instance.new("TextButton")
+	closeButton = Theme.Button(gui, "เก็บเข้าคลัง", "primary", UDim2.fromOffset(280, 54))
 	closeButton.Name = "Close"
 	closeButton.AnchorPoint = Vector2.new(0.5, 0.5)
 	closeButton.Position = UDim2.fromScale(0.5, 0.9)
-	closeButton.Size = UDim2.fromOffset(260, 52)
-	closeButton.BackgroundColor3 = Color3.fromRGB(70, 160, 90)
-	closeButton.Font = Enum.Font.GothamBold
-	closeButton.TextScaled = true
-	closeButton.TextColor3 = Color3.new(1, 1, 1)
-	closeButton.Text = "เก็บเข้าคลัง ✔"
+	closeButton.TextSize = 22
 	closeButton.Visible = false
-	closeButton.Parent = gui
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 10)
-	corner.Parent = closeButton
 
 	gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
 end
@@ -146,6 +170,9 @@ local function show(sackTypeId: string, shirts)
 	closeButton.Visible = false
 	fitGridToScreen()
 	gui.Enabled = true
+	raysConnection = RunService.RenderStepped:Connect(function(dt)
+		rays.Rotation = (rays.Rotation + dt * 8) % 360
+	end)
 
 	local totalMin, totalMax = 0, 0
 	for index, shirt in shirts do
@@ -173,6 +200,10 @@ local function show(sackTypeId: string, shirts)
 	closeButton.Activated:Wait()
 
 	gui.Enabled = false
+	if raysConnection then
+		raysConnection:Disconnect()
+		raysConnection = nil
+	end
 	busy = false
 end
 

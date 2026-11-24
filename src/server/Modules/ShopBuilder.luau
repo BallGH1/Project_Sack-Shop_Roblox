@@ -211,7 +211,7 @@ local function buildInterior(model: Model, o: CFrame)
 	part(props, o, "CashBox", Vector3.new(1.5, 0.8, 1), rot(-13, 4, 19, 0, -10, 0), Color3.fromRGB(60, 90, 70), M.Rust)
 
 	-- เก้าอี้พลาสติกเก่า ๆ (หันเอียง)
-	local chair = o * rot(-10, 1.4, 14.5, 0, 20, 0)
+	local chair = o * rot(-17.5, 1.4, 10.5, 0, 75, 0) -- ชิดผนังซ้าย ไม่ขวางทางลูกค้าไปเคาน์เตอร์
 	part(props, chair, "ChairSeat", Vector3.new(2, 0.3, 2), at(0, 1.8, 0), C.Chair, M.Plastic)
 	part(props, chair, "ChairBack", Vector3.new(2, 2, 0.3), at(0, 2.9, 0.9), C.Chair, M.Plastic)
 	for _, offset in { Vector2.new(-0.85, -0.85), Vector2.new(0.85, -0.85), Vector2.new(-0.85, 0.85), Vector2.new(0.85, 0.85) } do
@@ -258,6 +258,42 @@ local function buildFixtures(model: Model, o: CFrame)
 	part(fixtures, o, "Tape", Vector3.new(8, 0.05, 0.5), rot(0.2, 1.43, 20.75, 0, 1.5, 0), C.Tape, M.Plastic, tape)
 	part(fixtures, o, "Tape", Vector3.new(0.5, 0.05, 7), at(-3.75, 1.43, 17), C.Tape, M.Plastic, tape)
 	part(fixtures, o, "Tape", Vector3.new(0.5, 0.05, 6), at(3.75, 1.43, 16.5), C.Tape, M.Plastic, tape) -- เทปลอกไปนิดนึง
+
+	local hidden = { Transparency = 1, CanCollide = false, CanQuery = false, CanTouch = false }
+
+	-- ช่องแขวนเสื้อบนราว OldRack (ShopService ใช้) หน้าเสื้อหันเข้ากลางร้าน
+	local rackSlots = Instance.new("Folder")
+	rackSlots.Name = "RackSlots"
+	rackSlots.Parent = fixtures
+	for i, z in { 5.3, 7.9, 10.5, 13.1 } do
+		part(rackSlots, o, "Slot" .. i, Vector3.new(0.5, 2.4, 2.2), at(17.5, 5.75, z), C.Tape, M.Plastic, hidden)
+	end
+
+	-- จุดเดินของ NPC ลูกค้า (NPCService ใช้): เกิดหน้าลาน → ประตู → ยืนดูราว
+	part(fixtures, o, "NpcSpawn", Vector3.new(1, 1, 1), at(0, 1.5, -33), C.Tape, M.Plastic, hidden)
+	part(fixtures, o, "NpcEntrance", Vector3.new(1, 1, 1), at(0, 1.9, -2), C.Tape, M.Plastic, hidden)
+	part(fixtures, o, "NpcBrowse", Vector3.new(1, 1, 1), at(13.5, 1.9, 9.2), C.Tape, M.Plastic, hidden)
+	-- ทางเดินไปเคาน์เตอร์ + คิวจ่ายเงิน (ช่อง 1 = หน้าเคาน์เตอร์, ช่อง 2 = ต่อคิว)
+	part(fixtures, o, "NpcAisle", Vector3.new(1, 1, 1), at(-6, 1.9, 10.5), C.Tape, M.Plastic, hidden)
+	part(fixtures, o, "CheckoutSpot1", Vector3.new(1, 1, 1), at(-14, 1.9, 15.4), C.Tape, M.Plastic, hidden)
+	part(fixtures, o, "CheckoutSpot2", Vector3.new(1, 1, 1), at(-14, 1.9, 12.2), C.Tape, M.Plastic, hidden)
+	-- เครื่องคิดเงินบนเคาน์เตอร์ (ปุ่ม "คิดเงิน") + จุดยืนแคชเชียร์ (ไว้ใช้ตอนจ้างพนักงานในอนาคต)
+	part(fixtures, o, "Register", Vector3.new(1.6, 1, 1.2), at(-14, 4.1, 19), C.Tape, M.Plastic, hidden)
+	part(fixtures, o, "CashierSpot", Vector3.new(1, 1, 1), at(-14, 1.9, 23), C.Tape, M.Plastic, hidden)
+
+	-- พื้นที่วางของตกแต่ง (PlacementRules ใช้) ล่องหน ไม่ชน แต่ raycast/ตรวจทับได้
+	local queryable = { Transparency = 1, CanCollide = false, CanQuery = true, CanTouch = false }
+	part(fixtures, o, "BuildArea", Vector3.new(40, 0.2, 30), at(0, 1.5, 10), C.Tape, M.Plastic, queryable)
+	-- ผนังด้านใน: -Z ของแผ่นหันเข้าร้าน, ผิว +Z แนบผนัง
+	part(fixtures, o, "WallBack", Vector3.new(39.5, 11, 0.3), at(0, 7.4, 24.85), C.Tape, M.Plastic, queryable)
+	part(fixtures, o, "WallLeft", Vector3.new(29.5, 11, 0.3), rot(-19.85, 7.4, 10, 0, -90, 0), C.Tape, M.Plastic, queryable)
+	part(fixtures, o, "WallRight", Vector3.new(29.5, 11, 0.3), rot(19.85, 7.4, 10, 0, 90, 0), C.Tape, M.Plastic, queryable)
+	-- พื้นที่ห้ามวางของบนพื้น (ทางเดินลูกค้า / โซนเปิดกระสอบ / คิวจ่ายเงิน)
+	part(fixtures, o, "NoBuildEntrance", Vector3.new(8, 6, 7), at(0, 4, -1.5), C.Tape, M.Plastic, queryable)
+	part(fixtures, o, "NoBuildSackZone", Vector3.new(9.5, 6, 9.5), at(0, 4, 17), C.Tape, M.Plastic, queryable)
+	part(fixtures, o, "NoBuildCheckout", Vector3.new(10, 6, 7), at(-13, 4, 13.5), C.Tape, M.Plastic, queryable)
+	part(fixtures, o, "NoBuildCashier", Vector3.new(6, 6, 3.6), at(-14, 4, 23), C.Tape, M.Plastic, queryable)
+	part(fixtures, o, "NoBuildRackAisle", Vector3.new(5, 6, 11), at(13.5, 4, 9.2), C.Tape, M.Plastic, queryable)
 end
 
 ---------------------------------------------------------------------

@@ -16,6 +16,15 @@
         },
         "GetInventory": {
           "$className": "RemoteFunction"
+        },
+        "OpenDisplayMenu": {
+          "$className": "RemoteEvent"
+        },
+        "DisplayAction": {
+          "$className": "RemoteFunction"
+        },
+        "DecorAction": {
+          "$className": "RemoteFunction"
         }
       }
     },
@@ -40,9 +49,9 @@
         "$properties": {
           "Anchored": true,
           "Color": [
-            0.38823,
-            0.37254,
-            0.38823
+            0.36,
+            0.55,
+            0.27
           ],
           "Locked": true,
           "Position": [
@@ -51,10 +60,13 @@
             0
           ],
           "Size": [
-            512,
+            1400,
             20,
-            512
-          ]
+            1400
+          ],
+          "Material": {
+            "Enum": 1280
+          }
         }
       }
     },

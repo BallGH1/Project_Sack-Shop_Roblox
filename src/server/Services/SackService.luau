@@ -84,8 +84,11 @@ end
 local function setCarrySpeed(character: Model?, carrying: boolean)
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 	if humanoid then
+		-- ความเร็วพื้นฐานของผู้เล่นคนนี้ (DevService ตั้งไว้ใน attribute ถ้ามีบูสต์)
+		local player = Players:GetPlayerFromCharacter(character)
+		local base = (player and player:GetAttribute("BaseWalkSpeed")) or StarterPlayer.CharacterWalkSpeed
 		local multiplier = if carrying then CONFIG.CarryWalkSpeedMultiplier else 1
-		humanoid.WalkSpeed = StarterPlayer.CharacterWalkSpeed * multiplier
+		humanoid.WalkSpeed = base * multiplier
 	end
 end
 

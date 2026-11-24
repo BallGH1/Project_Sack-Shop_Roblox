@@ -1,5 +1,5 @@
--- InventoryController: ปุ่มด้านซ้ายจอ "คลังเสื้อ" + "อัตราสุ่ม"
---   คลังเสื้อ : ขอรายการจาก server (Remotes.GetInventory) แล้วแสดงเป็นการ์ด
+-- InventoryController: หน้าต่าง "คลังเสื้อ" + "อัตราสุ่ม" (ปุ่มอยู่แถบซ้ายของ HudController)
+--   คลังเสื้อ : ขอรายการจาก server (Remotes.GetInventory) แล้วแสดงเป็นการ์ด กรองตาม rarity ได้
 --   อัตราสุ่ม : อ่านจาก SackTypes (เปิดเผยอัตราตามกฎ Roblox)
 
 local Players = game:GetService("Players")
@@ -8,122 +8,70 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config")
 local Rarities = require(Config:WaitForChild("Rarities"))
 local SackTypes = require(Config:WaitForChild("SackTypes"))
-local ShirtCard = require(script.Parent.Parent:WaitForChild("UI"):WaitForChild("ShirtCard"))
+local UI = script.Parent.Parent:WaitForChild("UI")
+local ShirtCard = require(UI:WaitForChild("ShirtCard"))
+local Theme = require(UI:WaitForChild("Theme"))
+local HudController = require(script.Parent:WaitForChild("HudController"))
 
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
 
 local InventoryController = {}
 
 local gui: ScreenGui
-local inventoryWindow: Frame
-local inventoryBody: ScrollingFrame
-local inventoryTitle: TextLabel
-local dropRateWindow: Frame
+local inventoryWindow
+local dropRateWindow
+local grid: ScrollingFrame
+local filterBar: Frame
+local capacityFill: Frame
+local emptyLabel: TextLabel
 local loading = false
+local lastResult = nil
+local currentFilter = "All"
 
-local DARK = Color3.fromRGB(30, 27, 25)
-local PANEL = Color3.fromRGB(45, 40, 36)
+---------------------------------------------------------------------
+-- คลังเสื้อ
+---------------------------------------------------------------------
 
-local function corner(parent: Instance, radius: number)
-	local c = Instance.new("UICorner")
-	c.CornerRadius = UDim.new(0, radius)
-	c.Parent = parent
-end
+local function renderGrid()
+	for _, child in grid:GetChildren() do
+		if child:IsA("GuiObject") then
+			child:Destroy()
+		end
+	end
+	if not lastResult then
+		return
+	end
 
-local function makeSideButton(text: string, order: number): TextButton
-	local button = Instance.new("TextButton")
-	button.Name = text
-	button.LayoutOrder = order
-	button.Size = UDim2.fromOffset(150, 44)
-	button.BackgroundColor3 = PANEL
-	button.BackgroundTransparency = 0.1
-	button.Font = Enum.Font.GothamBold
-	button.TextSize = 18
-	button.TextColor3 = Color3.new(1, 1, 1)
-	button.Text = text
-	corner(button, 10)
-	return button
-end
+	local shirts = {}
+	for _, shirt in lastResult.Shirts do
+		if currentFilter == "All" or shirt.Rarity == currentFilter then
+			table.insert(shirts, shirt)
+		end
+	end
+	ShirtCard.Sort(shirts)
 
--- หน้าต่างกลางจอ: คืน (window, titleLabel, body)
-local function makeWindow(name: string): (Frame, TextLabel, ScrollingFrame)
-	local window = Instance.new("Frame")
-	window.Name = name
-	window.AnchorPoint = Vector2.new(0.5, 0.5)
-	window.Position = UDim2.fromScale(0.5, 0.5)
-	window.Size = UDim2.fromScale(0.7, 0.72)
-	window.BackgroundColor3 = DARK
-	window.Visible = false
-	window.Parent = gui
-	corner(window, 14)
-	local constraint = Instance.new("UISizeConstraint")
-	constraint.MaxSize = Vector2.new(900, 620)
-	constraint.Parent = window
-
-	local titleLabel = Instance.new("TextLabel")
-	titleLabel.Name = "Title"
-	titleLabel.Position = UDim2.fromOffset(20, 10)
-	titleLabel.Size = UDim2.new(1, -90, 0, 40)
-	titleLabel.BackgroundTransparency = 1
-	titleLabel.TextXAlignment = Enum.TextXAlignment.Left
-	titleLabel.Font = Enum.Font.GothamBlack
-	titleLabel.TextSize = 26
-	titleLabel.TextColor3 = Color3.fromRGB(255, 230, 150)
-	titleLabel.Parent = window
-
-	local close = Instance.new("TextButton")
-	close.Name = "Close"
-	close.AnchorPoint = Vector2.new(1, 0)
-	close.Position = UDim2.new(1, -10, 0, 10)
-	close.Size = UDim2.fromOffset(40, 40)
-	close.BackgroundColor3 = Color3.fromRGB(170, 60, 60)
-	close.Font = Enum.Font.GothamBold
-	close.TextSize = 22
-	close.TextColor3 = Color3.new(1, 1, 1)
-	close.Text = "X"
-	close.Parent = window
-	corner(close, 8)
-	close.Activated:Connect(function()
-		window.Visible = false
-	end)
-
-	local body = Instance.new("ScrollingFrame")
-	body.Name = "Body"
-	body.Position = UDim2.fromOffset(16, 60)
-	body.Size = UDim2.new(1, -32, 1, -76)
-	body.BackgroundTransparency = 1
-	body.BorderSizePixel = 0
-	body.ScrollBarThickness = 8
-	body.CanvasSize = UDim2.new()
-	body.AutomaticCanvasSize = Enum.AutomaticSize.Y
-	body.Parent = window
-
-	return window, titleLabel, body
-end
-
-local function clearBody(body: ScrollingFrame)
-	for _, child in body:GetChildren() do
-		child:Destroy()
+	emptyLabel.Visible = #shirts == 0
+	emptyLabel.Text = if #lastResult.Shirts == 0
+		then "📦\nยังไม่มีเสื้อ ไปซื้อกระสอบที่โรงงานกลางเมืองสิ!"
+		else "ไม่มีเสื้อระดับนี้"
+	for index, shirt in shirts do
+		local card = ShirtCard.Create(shirt)
+		card.LayoutOrder = index
+		card.Parent = grid
 	end
 end
-
----------------------------------------------------------------------
--- Inventory
----------------------------------------------------------------------
 
 local function refreshInventory()
 	if loading then
 		return
 	end
 	loading = true
-	inventoryTitle.Text = "คลังเสื้อ (กำลังโหลด...)"
+	inventoryWindow.SubtitleLabel.Text = "กำลังโหลด..."
 
 	local remote = Remotes:WaitForChild("GetInventory") :: RemoteFunction
 	local result
 	for _ = 1, 3 do
-		local ok, response = pcall(function()
-			return remote:InvokeServer()
-		end)
+		local ok, response = pcall(remote.InvokeServer, remote)
 		if ok and response then
 			result = response
 			break
@@ -132,93 +80,199 @@ local function refreshInventory()
 	end
 	loading = false
 
-	clearBody(inventoryBody)
 	if not result then
-		inventoryTitle.Text = "คลังเสื้อ (โหลดไม่สำเร็จ ลองใหม่)"
+		inventoryWindow.SubtitleLabel.Text = "โหลดไม่สำเร็จ ลองเปิดใหม่อีกครั้ง"
 		return
 	end
+	lastResult = result
+	local count, capacity = #result.Shirts, result.Capacity
+	inventoryWindow.SubtitleLabel.Text = ("เสื้อ %d / %d ตัว"):format(count, capacity)
+	capacityFill.Size = UDim2.fromScale(math.clamp(count / math.max(capacity, 1), 0, 1), 1)
+	capacityFill.BackgroundColor3 = if count >= capacity then Theme.Colors.Danger else Theme.Colors.Accent
+	renderGrid()
+end
 
-	local shirts = ShirtCard.Sort(result.Shirts)
-	inventoryTitle.Text = ("คลังเสื้อ (%d/%d)"):format(#shirts, result.Capacity)
+local function buildInventoryWindow()
+	inventoryWindow = Theme.Window(gui, {
+		Name = "InventoryWindow",
+		Title = "คลังเสื้อ",
+		Icon = "👕",
+		Subtitle = "",
+	})
+	local body = inventoryWindow.Body
 
-	if #shirts == 0 then
-		local empty = Instance.new("TextLabel")
-		empty.Size = UDim2.new(1, 0, 0, 60)
-		empty.BackgroundTransparency = 1
-		empty.Font = Enum.Font.GothamBold
-		empty.TextSize = 20
-		empty.TextColor3 = Color3.fromRGB(190, 185, 175)
-		empty.Text = "ยังไม่มีเสื้อ ไปซื้อกระสอบที่โรงงานกลางแมพสิ!"
-		empty.Parent = inventoryBody
-		return
+	-- แถบความจุ
+	local bar = Instance.new("Frame")
+	bar.Size = UDim2.new(1, 0, 0, 8)
+	bar.BackgroundColor3 = Theme.Colors.PanelLighter
+	bar.Parent = body
+	Theme.Corner(bar, 4)
+	capacityFill = Instance.new("Frame")
+	capacityFill.Size = UDim2.fromScale(0, 1)
+	capacityFill.BackgroundColor3 = Theme.Colors.Accent
+	capacityFill.Parent = bar
+	Theme.Corner(capacityFill, 4)
+
+	-- ปุ่มกรองตาม rarity
+	filterBar = Instance.new("Frame")
+	filterBar.Position = UDim2.fromOffset(0, 18)
+	filterBar.Size = UDim2.new(1, 0, 0, 30)
+	filterBar.BackgroundTransparency = 1
+	filterBar.Parent = body
+	local row = Instance.new("UIListLayout")
+	row.FillDirection = Enum.FillDirection.Horizontal
+	row.Padding = UDim.new(0, 6)
+	row.SortOrder = Enum.SortOrder.LayoutOrder
+	row.Parent = filterBar
+
+	local filterButtons = {}
+	local function addFilter(order: number, key: string, label: string, color: Color3)
+		local button = Instance.new("TextButton")
+		button.LayoutOrder = order
+		button.AutoButtonColor = false
+		button.AutomaticSize = Enum.AutomaticSize.X
+		button.Size = UDim2.fromOffset(0, 30)
+		button.BackgroundColor3 = Theme.Colors.PanelLighter
+		button.Font = Theme.Fonts.Bold
+		button.TextSize = 14
+		button.TextColor3 = color
+		button.Text = label
+		button.Parent = filterBar
+		Theme.Corner(button, 15)
+		Theme.Padding(button, 0, 12)
+		local stroke = Theme.Stroke(button, color, 1.5, 0.6)
+		Theme.AttachHover(button)
+		filterButtons[key] = { Button = button, Stroke = stroke }
+		button.Activated:Connect(function()
+			currentFilter = key
+			for k, item in filterButtons do
+				item.Stroke.Transparency = if k == key then 0 else 0.6
+				item.Button.BackgroundColor3 = if k == key then Theme.Colors.Stroke else Theme.Colors.PanelLighter
+			end
+			renderGrid()
+		end)
 	end
+	addFilter(0, "All", "ทั้งหมด", Theme.Colors.Text)
+	for i, rarity in Rarities.List do
+		addFilter(i, rarity.Name, rarity.Name, rarity.Color)
+	end
+	filterButtons.All.Stroke.Transparency = 0
+	filterButtons.All.Button.BackgroundColor3 = Theme.Colors.Stroke
 
+	local holder = Instance.new("Frame")
+	holder.Position = UDim2.fromOffset(0, 58)
+	holder.Size = UDim2.new(1, 0, 1, -58)
+	holder.BackgroundTransparency = 1
+	holder.Parent = body
+	grid = Theme.Scroll(holder)
 	local layout = Instance.new("UIGridLayout")
-	layout.CellSize = UDim2.fromOffset(130, 175)
+	layout.CellSize = UDim2.fromOffset(136, 182)
 	layout.CellPadding = UDim2.fromOffset(10, 10)
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
-	layout.Parent = inventoryBody
+	layout.Parent = grid
+	Theme.Padding(grid, 4)
+	emptyLabel = Theme.Text(holder, {
+		Size = UDim2.new(1, 0, 0, 120),
+		Position = UDim2.fromOffset(0, 30),
+		TextXAlignment = Enum.TextXAlignment.Center,
+		TextColor3 = Theme.Colors.Muted,
+		TextSize = 20,
+		TextWrapped = true,
+		Visible = false,
+		Text = "",
+	})
 
-	local padding = Instance.new("UIPadding")
-	padding.PaddingTop = UDim.new(0, 4)
-	padding.PaddingLeft = UDim.new(0, 4)
-	padding.Parent = inventoryBody
-
-	for index, shirt in shirts do
-		local card = ShirtCard.Create(shirt)
-		card.LayoutOrder = index
-		card.Parent = inventoryBody
-	end
+	inventoryWindow.Opened:Connect(refreshInventory)
 end
 
 ---------------------------------------------------------------------
--- Drop rates
+-- อัตราสุ่ม
 ---------------------------------------------------------------------
 
-local function buildDropRates(body: ScrollingFrame)
-	clearBody(body)
-	local layout = Instance.new("UIListLayout")
-	layout.Padding = UDim.new(0, 10)
-	layout.SortOrder = Enum.SortOrder.LayoutOrder
-	layout.Parent = body
+local function buildDropRateWindow()
+	dropRateWindow = Theme.Window(gui, {
+		Name = "DropRateWindow",
+		Title = "อัตราสุ่มของกระสอบ",
+		Icon = "🎲",
+		Subtitle = "โอกาสได้เสื้อแต่ละระดับต่อ 1 ตัว",
+	})
+	local scroll = Theme.Scroll(dropRateWindow.Body)
+	local list = Instance.new("UIListLayout")
+	list.Padding = UDim.new(0, 10)
+	list.SortOrder = Enum.SortOrder.LayoutOrder
+	list.Parent = scroll
+	Theme.Padding(scroll, 2, 4)
 
 	for index, sackType in SackTypes.GetEnabled() do
-		local parts = {}
-		for _, rarity in Rarities.List do
+		local card = Instance.new("Frame")
+		card.LayoutOrder = index
+		card.Size = UDim2.new(1, -8, 0, 96)
+		card.BackgroundColor3 = Theme.Colors.PanelLight
+		card.Parent = scroll
+		Theme.Corner(card, 12)
+		Theme.Stroke(card, sackType.Color, 2, 0.4)
+
+		Theme.Text(card, {
+			Position = UDim2.fromOffset(16, 10),
+			Size = UDim2.new(0.6, 0, 0, 26),
+			Font = Theme.Fonts.Title,
+			TextSize = 20,
+			TextColor3 = sackType.Color,
+			Text = "🛍️ " .. sackType.DisplayName,
+		})
+		Theme.Text(card, {
+			AnchorPoint = Vector2.new(1, 0),
+			Position = UDim2.new(1, -16, 0, 10),
+			Size = UDim2.new(0.4, 0, 0, 26),
+			TextXAlignment = Enum.TextXAlignment.Right,
+			TextColor3 = Theme.Colors.Money,
+			TextSize = 18,
+			Text = Theme.FormatMoney(sackType.Price) .. "  ·  " .. sackType.ShirtCount .. " ตัว",
+		})
+
+		-- แถบสัดส่วน rarity
+		local bar = Instance.new("Frame")
+		bar.Position = UDim2.fromOffset(16, 44)
+		bar.Size = UDim2.new(1, -32, 0, 12)
+		bar.BackgroundColor3 = Theme.Colors.PanelLighter
+		bar.ClipsDescendants = true
+		bar.Parent = card
+		Theme.Corner(bar, 6)
+		local barRow = Instance.new("UIListLayout")
+		barRow.FillDirection = Enum.FillDirection.Horizontal
+		barRow.SortOrder = Enum.SortOrder.LayoutOrder
+		barRow.Parent = bar
+
+		local legend = Instance.new("Frame")
+		legend.Position = UDim2.fromOffset(16, 64)
+		legend.Size = UDim2.new(1, -32, 0, 22)
+		legend.BackgroundTransparency = 1
+		legend.Parent = card
+		local legendRow = Instance.new("UIListLayout")
+		legendRow.FillDirection = Enum.FillDirection.Horizontal
+		legendRow.Padding = UDim.new(0, 14)
+		legendRow.SortOrder = Enum.SortOrder.LayoutOrder
+		legendRow.Parent = legend
+
+		for order, rarity in Rarities.List do
 			local weight = sackType.RarityWeights[rarity.Name] or 0
 			if weight > 0 then
-				local hex = rarity.Color:ToHex()
-				table.insert(parts, '<font color="#' .. hex .. '">' .. rarity.Name .. " " .. ("%g"):format(weight) .. "%</font>")
+				local segment = Instance.new("Frame")
+				segment.LayoutOrder = order
+				segment.BorderSizePixel = 0
+				segment.Size = UDim2.fromScale(weight / 100, 1)
+				segment.BackgroundColor3 = rarity.Color
+				segment.Parent = bar
+				Theme.Text(legend, {
+					LayoutOrder = order,
+					AutomaticSize = Enum.AutomaticSize.X,
+					Size = UDim2.fromOffset(0, 22),
+					TextSize = 14,
+					TextColor3 = rarity.Color,
+					Text = rarity.Name .. " " .. ("%g"):format(weight) .. "%",
+				})
 			end
 		end
-
-		local row = Instance.new("TextLabel")
-		row.LayoutOrder = index
-		row.Size = UDim2.new(1, -12, 0, 0)
-		row.AutomaticSize = Enum.AutomaticSize.Y
-		row.BackgroundColor3 = PANEL
-		row.TextXAlignment = Enum.TextXAlignment.Left
-		row.TextWrapped = true
-		row.RichText = true
-		row.Font = Enum.Font.Gotham
-		row.TextSize = 18
-		row.TextColor3 = Color3.new(1, 1, 1)
-		row.Text = "<b>"
-			.. sackType.DisplayName
-			.. "</b>   "
-			.. ShirtCard.FormatMoney(sackType.Price)
-			.. " · เสื้อ "
-			.. sackType.ShirtCount
-			.. " ตัว/กระสอบ\n"
-			.. table.concat(parts, "   ")
-		row.Parent = body
-		corner(row, 8)
-		local padding = Instance.new("UIPadding")
-		padding.PaddingTop = UDim.new(0, 8)
-		padding.PaddingBottom = UDim.new(0, 8)
-		padding.PaddingLeft = UDim.new(0, 12)
-		padding.PaddingRight = UDim.new(0, 12)
-		padding.Parent = row
 	end
 end
 
@@ -230,48 +284,35 @@ function InventoryController:Start()
 	gui = Instance.new("ScreenGui")
 	gui.Name = "InventoryGui"
 	gui.ResetOnSpawn = false
-	gui.DisplayOrder = 5
+	gui.DisplayOrder = 10
 	gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
 
-	local side = Instance.new("Frame")
-	side.Name = "SideButtons"
-	side.AnchorPoint = Vector2.new(0, 0.5)
-	side.Position = UDim2.new(0, 12, 0.5, 0)
-	side.Size = UDim2.fromOffset(150, 100)
-	side.BackgroundTransparency = 1
-	side.Parent = gui
-	local list = Instance.new("UIListLayout")
-	list.Padding = UDim.new(0, 8)
-	list.SortOrder = Enum.SortOrder.LayoutOrder
-	list.Parent = side
+	buildInventoryWindow()
+	buildDropRateWindow()
 
-	local inventoryButton = makeSideButton("👕 คลังเสื้อ", 1)
-	inventoryButton.Parent = side
-	local dropRateButton = makeSideButton("🎲 อัตราสุ่ม", 2)
-	dropRateButton.Parent = side
-
-	local dropRateTitle, dropRateBody
-	inventoryWindow, inventoryTitle, inventoryBody = makeWindow("InventoryWindow")
-	dropRateWindow, dropRateTitle, dropRateBody = makeWindow("DropRateWindow")
-	dropRateTitle.Text = "อัตราสุ่มของกระสอบ"
-	buildDropRates(dropRateBody)
-
-	inventoryButton.Activated:Connect(function()
-		dropRateWindow.Visible = false
-		inventoryWindow.Visible = not inventoryWindow.Visible
-		if inventoryWindow.Visible then
-			refreshInventory()
-		end
+	local _, setInventoryActive = HudController:AddButton(1, "👕", "คลังเสื้อ", Enum.KeyCode.G, function()
+		inventoryWindow:Toggle()
 	end)
-	dropRateButton.Activated:Connect(function()
-		inventoryWindow.Visible = false
-		dropRateWindow.Visible = not dropRateWindow.Visible
+	local _, setDropActive = HudController:AddButton(3, "🎲", "อัตราสุ่ม", nil, function()
+		dropRateWindow:Toggle()
+	end)
+	inventoryWindow.Opened:Connect(function()
+		setInventoryActive(true)
+	end)
+	inventoryWindow.Closed:Connect(function()
+		setInventoryActive(false)
+	end)
+	dropRateWindow.Opened:Connect(function()
+		setDropActive(true)
+	end)
+	dropRateWindow.Closed:Connect(function()
+		setDropActive(false)
 	end)
 
 	-- เปิดกระสอบได้เสื้อใหม่ ถ้าคลังเปิดอยู่ให้รีเฟรช
 	local sackOpened = Remotes:WaitForChild("SackOpened") :: RemoteEvent
 	sackOpened.OnClientEvent:Connect(function()
-		if inventoryWindow.Visible then
+		if inventoryWindow:IsOpen() then
 			task.delay(0.5, refreshInventory)
 		end
 	end)

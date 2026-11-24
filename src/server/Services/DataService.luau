@@ -56,6 +56,8 @@ local function newTemplate()
 		Version = CURRENT_VERSION,
 		Money = GameConfig.StartingMoney,
 		PendingSacks = {}, -- กระสอบที่วางในร้านแล้วแต่ยังไม่เปิด: { {Id, TypeId}, ... }
+		Furniture = {}, -- ของตกแต่งที่วางในร้าน: [furnitureId] = { Type, X, Z, Rot } หรือ { Type, Wall, U, V }
+		Displayed = {}, -- เสื้อที่แขวนขาย: ["ช่อง"] = { ShirtId, Price } (key เป็น string เพราะ DataStore ไม่ชอบ array โหว่)
 		Shirts = {}, -- [shirtId] = ShirtData (Phase 1 ข้อ 5) เก็บ trueValue ได้เพราะ DataStore อยู่ฝั่ง server
 		Upgrades = {}, -- [upgradeId] = level
 		Vehicles = {}, -- [vehicleId] = true
@@ -302,6 +304,17 @@ function DataService:AddMoney(player: Player, amount: number, reason: string?): 
 	end
 	profile.Data.Money += amount
 	profile.Data.Stats.TotalEarned += amount
+	syncMoney(player, profile)
+	return true
+end
+
+-- ตั้งเงินตรง ๆ (ใช้กับบัญชีทดสอบเท่านั้น ไม่นับเป็นรายได้ใน Stats)
+function DataService:SetMoney(player: Player, amount: number): boolean
+	local profile = profiles[player]
+	if not profile or type(amount) ~= "number" or amount < 0 or amount % 1 ~= 0 then
+		return false
+	end
+	profile.Data.Money = amount
 	syncMoney(player, profile)
 	return true
 end
